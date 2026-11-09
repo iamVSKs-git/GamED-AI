@@ -1,18 +1,19 @@
 """Asset Dispatcher (V4).
 
-Worker node that receives a scene via Send API and:
-1. Searches for a reference diagram image
-2. Regenerates a clean version via Gemini (no text/labels/annotations)
-3. Runs zone detection via Gemini on the clean image
-4. Refines with SAM3 for pixel-precise polygon boundaries
-5. Returns AssetResult dict
+Worker node that receives a scene via Send API and acquires a diagram image
+in priority order:
+1. Gemini image generation from scratch (primary)
+2. Serper image search — used as-is, no Gemini refining (fallback)
+3. No image — frontend shows placeholder text (last resort)
+Then runs zone detection via Gemini and refines with SAM3, returns AssetResult.
 
 NEVER raises — always returns a status dict (audit 39 Finding 17).
 
 State writes: generated_assets_raw (via Send accumulation)
-Model: gemini-2.5-flash-image for regeneration, gemini-3-flash-preview for zone detection
+Model: gemini-2.5-flash-image for generation, gemini-3-flash-preview for zone detection
 """
 
+import os
 import time
 from typing import Any
 
@@ -27,8 +28,8 @@ async def asset_worker(state: dict) -> dict:
     Receives via Send: {scene_id, image_spec, zone_labels, question_text, _run_id}
     Returns: {generated_assets_raw: [{scene_id, status, diagram_url, zones, match_quality}]}
 
-    The return is wrapped in generated_assets_raw list because the state field
-    uses Annotated[list, operator.add] for Send API accumulation.
+    Image acquisition priority: (1) Gemini generation from scratch, (2) Serper
+    search used as-is if SERPER_API_KEY is set, (3) placeholder (no image).
     """
     scene_id = state.get("scene_id", "unknown")
     image_spec = state.get("image_spec") or {}
@@ -42,105 +43,73 @@ async def asset_worker(state: dict) -> dict:
                 f"question={question_text[:50]}")
 
     try:
-        # Step 1: Search for reference diagram image
+        # Step 1: Generate diagram image from scratch via Gemini (primary method)
+        clean_bytes = None
+        diagram_url = None
+
         t0 = time.time()
-        reference_url = await _search_image(image_spec, zone_labels, question_text)
-        search_ms = int((time.time() - t0) * 1000)
-
-        sub_stages.append({
-            "id": f"asset_search_{scene_id}",
-            "name": f"Image search ({scene_id})",
-            "type": "image_search",
-            "scene_id": scene_id,
-            "status": "success" if reference_url else "failed",
-            "duration_ms": search_ms,
-            "model": "serper_image_api",
-            "output_summary": {
-                "found": bool(reference_url),
-                "url": (reference_url[:80] + "...") if reference_url and len(reference_url) > 80 else reference_url,
-            },
-        })
-
-        if not reference_url:
-            logger.warning(f"No image found for scene {scene_id}, trying fallback")
-            t1 = time.time()
-            reference_url = await _fallback_image_search(image_spec)
-            fallback_ms = int((time.time() - t1) * 1000)
-
-            sub_stages.append({
-                "id": f"asset_fallback_{scene_id}",
-                "name": f"Fallback search ({scene_id})",
-                "type": "image_search_fallback",
-                "scene_id": scene_id,
-                "status": "success" if reference_url else "failed",
-                "duration_ms": fallback_ms,
-                "model": "serper_image_api",
-                "output_summary": {
-                    "found": bool(reference_url),
-                    "url": (reference_url[:80] + "...") if reference_url and len(reference_url) > 80 else reference_url,
-                },
-            })
-
-        if not reference_url:
-            result = _error_result(scene_id, "No diagram image found after search + fallback")
-            result["_sub_stages"] = sub_stages
-            return result
-
-        # Filter out SVGs — they can't be processed by Gemini image gen
-        if reference_url.lower().endswith(".svg") or ".svg?" in reference_url.lower():
-            logger.warning(f"Image search returned SVG for {scene_id}, re-searching without SVG")
-            reference_url = None
-            # Try fallback search which may find a raster image
-            t_resv = time.time()
-            reference_url = await _fallback_image_search(image_spec)
-            resv_ms = int((time.time() - t_resv) * 1000)
-            sub_stages.append({
-                "id": f"asset_svg_retry_{scene_id}",
-                "name": f"SVG retry search ({scene_id})",
-                "type": "image_search_svg_retry",
-                "scene_id": scene_id,
-                "status": "success" if reference_url else "failed",
-                "duration_ms": resv_ms,
-                "model": "serper_image_api",
-            })
-            if not reference_url or reference_url.lower().endswith(".svg"):
-                result = _error_result(scene_id, "Only SVG images found — cannot process")
-                result["_sub_stages"] = sub_stages
-                return result
-
-        logger.info(f"Asset worker {scene_id}: using reference URL: {reference_url[:100]}")
-
-        # Step 2: Download reference + regenerate clean image via Gemini
-        t_regen = time.time()
-        clean_bytes, diagram_url = await _regenerate_clean_image(
-            reference_url, image_spec, zone_labels, scene_id, run_id,
+        clean_bytes, diagram_url = await _generate_image_from_scratch(
+            image_spec, zone_labels, question_text, scene_id, run_id,
         )
-        regen_ms = int((time.time() - t_regen) * 1000)
+        gen_ms = int((time.time() - t0) * 1000)
 
         sub_stages.append({
-            "id": f"asset_regenerate_{scene_id}",
-            "name": f"Image regeneration ({scene_id})",
-            "type": "image_regeneration",
+            "id": f"asset_generate_{scene_id}",
+            "name": f"Gemini image generation ({scene_id})",
+            "type": "image_generation",
             "scene_id": scene_id,
-            "status": "success" if clean_bytes else "degraded",
-            "duration_ms": regen_ms,
+            "status": "success" if clean_bytes else "failed",
+            "duration_ms": gen_ms,
             "model": "gemini-2.5-flash-image",
             "output_summary": {
-                "regenerated": clean_bytes is not None,
+                "generated": clean_bytes is not None,
                 "diagram_url": diagram_url[:80] if diagram_url else None,
                 "image_size_kb": len(clean_bytes) // 1024 if clean_bytes else 0,
             },
         })
 
+        # Step 1b: Fallback to Serper search — use the fetched image AS-IS (no Gemini refining)
+        if not clean_bytes and os.getenv("SERPER_API_KEY"):
+            logger.warning(f"Gemini generation failed for {scene_id}, falling back to Serper search")
+            t_search = time.time()
+            reference_url = await _search_image(image_spec, zone_labels, question_text)
+            if not reference_url:
+                reference_url = await _fallback_image_search(image_spec)
+            search_ms = int((time.time() - t_search) * 1000)
+
+            sub_stages.append({
+                "id": f"asset_search_{scene_id}",
+                "name": f"Fallback image search ({scene_id})",
+                "type": "image_search_fallback",
+                "scene_id": scene_id,
+                "status": "success" if reference_url else "failed",
+                "duration_ms": search_ms,
+                "model": "serper_image_api",
+            })
+
+            # Download the searched image directly and use it as-is (skip SVGs)
+            if reference_url and not reference_url.lower().endswith(".svg"):
+                t_dl = time.time()
+                clean_bytes = await _download_image(reference_url)
+                dl_ms = int((time.time() - t_dl) * 1000)
+                if clean_bytes:
+                    diagram_url = reference_url
+                sub_stages.append({
+                    "id": f"asset_download_{scene_id}",
+                    "name": f"Image download ({scene_id})",
+                    "type": "image_download",
+                    "scene_id": scene_id,
+                    "status": "success" if clean_bytes else "failed",
+                    "duration_ms": dl_ms,
+                    "model": "serper_image_api",
+                })
+
+        # Step 1c: Last resort — no image (frontend shows placeholder text)
         if not clean_bytes:
-            # Regeneration failed — download reference directly as fallback
-            logger.warning(f"Regeneration failed for {scene_id}, using reference image directly")
-            clean_bytes = await _download_image(reference_url)
-            if not clean_bytes:
-                result = _error_result(scene_id, "Failed to download reference image")
-                result["_sub_stages"] = sub_stages
-                return result
-            diagram_url = reference_url
+            logger.warning(f"No image for {scene_id} (Gemini + Serper both failed) — using placeholder")
+            result = _error_result(scene_id, "No image available (Gemini generation + Serper search failed)")
+            result["_sub_stages"] = sub_stages
+            return result
 
         # Step 3: Zone detection (Gemini bboxes on clean image)
         t2 = time.time()
@@ -245,6 +214,74 @@ def _error_result(scene_id: str, error: str) -> dict:
         "failed_asset_scene_ids": [scene_id],
         "is_degraded": True,
     }
+
+
+async def _generate_image_from_scratch(
+    image_spec: dict[str, Any],
+    zone_labels: list[str],
+    question_text: str,
+    scene_id: str,
+    run_id: str,
+) -> tuple[bytes | None, str]:
+    """Generate a diagram image from scratch using Gemini's native image generation.
+
+    Primary image acquisition method — no external search needed.
+
+    Returns:
+        (image_bytes, diagram_url) on success, (None, "") on failure.
+    """
+    try:
+        from google.genai import types
+        from app.services.asset_gen.gemini_image import GeminiImageEditor
+        editor = GeminiImageEditor()
+
+        description = image_spec.get("description", "")
+        structures = ", ".join(zone_labels[:15])
+        subject = description or question_text or "educational diagram"
+
+        prompt = (
+            f"Create a clean, detailed educational cross-section illustration of {subject}. "
+            f"The diagram must clearly show these structures: {structures}. "
+            f"CRITICAL: Do NOT include ANY text labels, annotations, arrows, "
+            f"leader lines, captions, numbers, or text of any kind. "
+            f"Draw ONLY the illustration itself with each structure visually distinct. "
+            f"Anatomically/scientifically accurate, high contrast, clean white background, "
+            f"textbook quality illustration style, flat-style vector look."
+        )
+
+        logger.info(f"[GenScratch:{scene_id}] Generating image from scratch via Gemini...")
+        response = editor.client.models.generate_content(
+            model=editor.IMAGE_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_modalities=["IMAGE"],
+                image_config=types.ImageConfig(aspect_ratio="4:3"),
+            ),
+        )
+
+        clean_bytes = None
+        for part in response.candidates[0].content.parts:
+            if part.inline_data is not None:
+                clean_bytes = part.inline_data.data
+                break
+
+        if not clean_bytes:
+            logger.warning(f"[GenScratch:{scene_id}] Gemini did not return an image")
+            return None, ""
+
+        from app.services.asset_gen.storage import AssetStorage
+        storage = AssetStorage()
+        game_id = run_id or scene_id
+        diagram_url = storage.save_image(game_id, f"diagram_{scene_id}.png", clean_bytes)
+
+        logger.info(f"[GenScratch:{scene_id}] Image generated and saved: {diagram_url} "
+                    f"({len(clean_bytes) // 1024}KB)")
+        return clean_bytes, diagram_url
+
+    except Exception as e:
+        logger.error(f"[GenScratch:{scene_id}] Image generation failed: {type(e).__name__}: {e}",
+                    exc_info=True)
+        return None, ""
 
 
 async def _download_image(url: str) -> bytes | None:

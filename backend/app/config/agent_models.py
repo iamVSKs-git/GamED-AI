@@ -101,19 +101,19 @@ class AgentModelConfig:
         "diagram_zone_labeler": "local-qwen-coder",
 
         # V4 pipeline agents
-        "input_analyzer": "gemini-2.5-flash",
-        "v4_input_analyzer": "gemini-2.5-flash",
-        "dk_retriever": "gemini-2.5-flash",
-        "v4_dk_retriever": "gemini-2.5-flash",
+        "input_analyzer": "gemini-3.8-flash",
+        "v4_input_analyzer": "gemini-3.8-flash",
+        "dk_retriever": "gemini-3.8-flash",
+        "v4_dk_retriever": "gemini-3.8-flash",
         "game_designer": "gemini-2.5-pro",
         "v4_game_designer": "gemini-2.5-pro",
         "content_builder_pro": "gemini-2.5-pro",
-        "content_builder_flash": "gemini-2.5-flash",
+        "content_builder_flash": "gemini-3.8-flash",
         "content_generator_pro": "gemini-2.5-pro",
-        "content_generator_flash": "gemini-2.5-flash",
+        "content_generator_flash": "gemini-3.8-flash",
         "v4_content_builder": "gemini-2.5-pro",
-        "interaction_designer": "gemini-2.5-flash",
-        "v4_asset_worker": "gemini-2.5-flash",
+        "interaction_designer": "gemini-3.8-flash",
+        "v4_asset_worker": "gemini-3.8-flash",
     })
 
     # Per-agent temperature overrides
@@ -556,35 +556,45 @@ PRESET_CONFIGS: Dict[str, AgentModelConfig] = {
     # Estimated cost: $0 (free tier with rate limits)
     # -------------------------------------------------------------------------
     "groq_free": AgentModelConfig(
-        default_model="llama-3.3-70b-versatile",
+        default_model="openai/gpt-oss-120b",
         default_temperature=0.7,
         agent_models={
-            "input_enhancer": "llama-3.3-70b-versatile",
-            "router": "llama-3.1-8b-instant",       # Fast routing
-            "game_planner": "llama-3.3-70b-versatile",
-            "scene_generator": "llama-3.3-70b-versatile",
-            "story_generator": "llama-3.3-70b-versatile",  # Legacy
-            "blueprint_generator": "llama-3.3-70b-versatile",
-            "blueprint_validator": "llama-3.1-8b-instant",  # Fast validation
-            "code_generator": "llama-3.3-70b-versatile",
-            "code_verifier": "llama-3.1-8b-instant",
-            "critic": "llama-3.3-70b-versatile",
-            "judge": "llama-3.3-70b-versatile",
-            "supervisor": "llama-3.3-70b-versatile",
-            "proposer": "llama-3.3-70b-versatile",
+            "input_analyzer": "openai/gpt-oss-120b",
+            "v4_input_analyzer": "openai/gpt-oss-120b",
+            "dk_retriever": "openai/gpt-oss-120b",
+            "v4_dk_retriever": "openai/gpt-oss-120b",
+            "game_designer": "openai/gpt-oss-120b",
+            "v4_game_designer": "openai/gpt-oss-120b",
+            "game_concept_designer": "openai/gpt-oss-120b",
+            "scene_designer": "openai/gpt-oss-120b",
+            "content_builder_pro": "openai/gpt-oss-120b",
+            "content_builder_flash": "openai/gpt-oss-120b",
+            "content_generator_pro": "openai/gpt-oss-120b",
+            "content_generator_flash": "openai/gpt-oss-120b",
+            "v4_content_builder": "openai/gpt-oss-120b",
+            "content_generator": "openai/gpt-oss-120b",
+            "interaction_designer": "openai/gpt-oss-120b",
+            "v4_asset_worker": "openai/gpt-oss-20b",
+            "asset_worker": "openai/gpt-oss-20b",
+            "blueprint_assembler": "openai/gpt-oss-120b",
         },
+        
         agent_temperatures={
-            "input_enhancer": 0.3,
-            "router": 0.3,
-            "game_planner": 0.7,
-            "story_generator": 0.8,
-            "blueprint_generator": 0.4,
-            "blueprint_validator": 0.1,
-            "code_generator": 0.4,
-            "code_verifier": 0.1,
-            "critic": 0.2,
-            "judge": 0.1,
+            "input_analyzer": 0.3,
+            "v4_input_analyzer": 0.3,
+            "dk_retriever": 0.3,
+            "v4_dk_retriever": 0.3,
+            "game_designer": 0.7,
+            "v4_game_designer": 0.7,
+            "game_concept_designer": 0.7,
+            "scene_designer": 0.7,
+            "content_generator": 0.4,
+            "interaction_designer": 0.3,
+            "blueprint_assembler": 0.3,
+            "asset_worker": 0.1,
+            "v4_asset_worker": 0.1,
         }
+
     ),
 
     # -------------------------------------------------------------------------
@@ -721,69 +731,69 @@ PRESET_CONFIGS: Dict[str, AgentModelConfig] = {
     # Estimated cost: ~$0.01-0.05 per pipeline run
     # -------------------------------------------------------------------------
     "gemini_only": AgentModelConfig(
-        default_model="gemini-2.5-flash",
+        default_model="gemini-3.8-flash",
         default_temperature=0.3,
         agent_models={
-            # Input processing (fast, cheap - use gemini-2.5-flash-lite)
-            "input_enhancer": "gemini-2.5-flash-lite",
-            "domain_knowledge_retriever": "gemini-2.5-flash-lite",
-            "router": "gemini-2.5-flash-lite",
+            # Input processing (fast, cheap - use gemini-3.8-flash)
+            "input_enhancer": "gemini-3.8-flash",
+            "domain_knowledge_retriever": "gemini-3.8-flash",
+            "router": "gemini-3.8-flash",
 
-            # Game planning (balanced - use gemini-2.5-flash)
-            "game_planner": "gemini-2.5-flash",
-            "game_designer": "gemini-2.5-flash",
-            "design_interpreter": "gemini-2.5-flash",
-            "scene_generator": "gemini-2.5-flash",
-            "story_generator": "gemini-2.5-flash",  # Legacy
+            # Game planning (balanced - use gemini-3.8-flash)
+            "game_planner": "gemini-3.8-flash",
+            "game_designer": "gemini-3.8-flash",
+            "design_interpreter": "gemini-3.8-flash",
+            "scene_generator": "gemini-3.8-flash",
+            "story_generator": "gemini-3.8-flash",  # Legacy
 
-            # 3-stage scene generation (use gemini-2.5-flash)
-            "scene_stage1_structure": "gemini-2.5-flash",
-            "scene_stage2_assets": "gemini-2.5-flash",
-            "scene_stage3_interactions": "gemini-2.5-flash",
+            # 3-stage scene generation (use gemini-3.8-flash)
+            "scene_stage1_structure": "gemini-3.8-flash",
+            "scene_stage2_assets": "gemini-3.8-flash",
+            "scene_stage3_interactions": "gemini-3.8-flash",
 
             # Asset generation pipeline (complex tasks - use gemini-3-flash)
-            "asset_planner": "gemini-2.5-flash",
+            "asset_planner": "gemini-3.8-flash",
             "asset_generator_orchestrator": "gemini-3-flash",  # Complex orchestration
-            "asset_validator": "gemini-2.5-flash-lite",  # Simple validation
+            "asset_validator": "gemini-3.8-flash",  # Simple validation
 
             # Blueprint generation (complex - use gemini-3-flash)
             "blueprint_generator": "gemini-3-flash",
-            "blueprint_validator": "gemini-2.5-flash-lite",
+            "blueprint_validator": "gemini-3.8-flash",
 
             # Diagram generation (complex - use gemini-3-flash)
             "diagram_spec_generator": "gemini-3-flash",
             "diagram_svg_generator": "gemini-3-flash",
 
             # Code generation
-            "code_generator": "gemini-2.5-flash",
-            "code_verifier": "gemini-2.5-flash-lite",
+            "code_generator": "gemini-3.8-flash",
+            "code_verifier": "gemini-3.8-flash",
 
             # Topology agents (balanced)
-            "critic": "gemini-2.5-flash",
-            "judge": "gemini-2.5-flash",
-            "supervisor": "gemini-2.5-flash",
-            "proposer": "gemini-2.5-flash",
-            "memory_retriever": "gemini-2.5-flash-lite",
+            "critic": "gemini-3.8-flash",
+            "judge": "gemini-3.8-flash",
+            "supervisor": "gemini-3.8-flash",
+            "proposer": "gemini-3.8-flash",
+            "memory_retriever": "gemini-3.8-flash",
 
             # Image pipeline agents (fast)
-            "diagram_image_retriever": "gemini-2.5-flash-lite",
+            "diagram_image_retriever": "gemini-3.8-flash",
 
             # V3 pipeline agents
             "game_designer_v3": "gemini-2.5-pro",  # ReAct creative design needs strong model
             "scene_architect_v3": "gemini-2.5-pro",  # ReAct — must follow tool-calling workflow
             "interaction_designer_v3": "gemini-2.5-pro",  # ReAct — must follow tool-calling workflow
-            "asset_generator_v3": "gemini-2.5-flash",  # Multi-step asset ops
-            "blueprint_assembler_v3": "gemini-2.5-flash",  # ReAct assembly + repair
-            "asset_orchestrator_v3": "gemini-2.5-flash",  # Legacy deterministic orchestration
-            "asset_spec_builder": "gemini-2.5-flash-lite",  # Deterministic
+            "asset_generator_v3": "gemini-3.8-flash",  # Multi-step asset ops
+            "blueprint_assembler_v3": "gemini-3.8-flash",  # ReAct assembly + repair
+            "asset_orchestrator_v3": "gemini-3.8-flash",  # Legacy deterministic orchestration
+            "asset_spec_builder": "gemini-3.8-flash",  # Deterministic
 
             # V4 Algorithm pipeline agents
-            "v4a_dk_retriever": "gemini-2.5-flash",
+            "v4a_dk_retriever": "gemini-3.8-flash",
             "v4a_game_concept_designer": "gemini-2.5-pro",  # Complex multi-scene game design
             "v4a_scene_content_gen_state_tracer": "gemini-2.5-pro",  # Long structured JSON with code+steps
             "v4a_scene_content_gen_bug_hunter": "gemini-2.5-pro",  # Multi-round bugs with code
             "v4a_scene_content_gen_algorithm_builder": "gemini-2.5-pro",  # Parsons blocks with code
-            "v4a_scene_content_gen_complexity_analyzer": "gemini-2.5-flash",  # Simpler pattern (flash tier per contracts.py)
+            "v4a_scene_content_gen_complexity_analyzer": "gemini-3.8-flash",  # Simpler pattern (flash tier per contracts.py)
             "v4a_scene_content_gen_constraint_puzzle": "gemini-2.5-pro",  # Board config + constraints
         },
         agent_temperatures={

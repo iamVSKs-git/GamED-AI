@@ -209,7 +209,8 @@ def main():
     }
 
     json_text = json.dumps(game_entry, indent=2, ensure_ascii=False)
-    Path(output_path).write_text(json_text)
+    Path(output_path).write_text(json_text, encoding="utf-8")
+
     print(f"\nBlueprint saved to: {output_path}")
 
     # Also copy to frontend/public/games/ for the player page
@@ -217,7 +218,7 @@ def main():
     if frontend_games.parent.exists():
         frontend_games.mkdir(parents=True, exist_ok=True)
         frontend_path = frontend_games / f"{slugify(args.question)}.json"
-        frontend_path.write_text(json_text)
+        frontend_path.write_text(json_text, encoding="utf-8")
         print(f"Copied to frontend: {frontend_path}")
 
 

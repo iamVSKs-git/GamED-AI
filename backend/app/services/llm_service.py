@@ -284,7 +284,7 @@ class LLMService:
     DEFAULT_OPENAI_MODEL = "gpt-4-turbo-preview"
     DEFAULT_ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022"
     DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
-    DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
+    DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b"
     DEFAULT_OLLAMA_MODEL = "llama3.2:latest"
     DEFAULT_SGLANG_URL = "http://localhost:30000"
 

@@ -294,6 +294,30 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
         is_open_source=True
     ),
 
+    "openai/gpt-oss-120b": ModelConfig(
+        provider=ModelProvider.GROQ,
+        model_id="openai/gpt-oss-120b",
+        tier=ModelTier.BALANCED,
+        context_window=131072,
+        max_tokens=65536,
+        supports_json_mode=True,
+        cost_per_1k_input=0.00015,
+        cost_per_1k_output=0.0006,
+    ),
+
+    "openai/gpt-oss-20b": ModelConfig(
+        provider=ModelProvider.GROQ,
+        model_id="openai/gpt-oss-20b",
+        tier=ModelTier.FAST,
+        context_window=131072,
+        max_tokens=65536,
+        supports_json_mode=True,
+        cost_per_1k_input=0.000075,
+        cost_per_1k_output=0.0003,
+    ),
+
+
+
     # -------------------------------------------------------------------------
     # Google Gemini Models (January 2026)
     # Get API key at: https://aistudio.google.com/app/apikey
@@ -329,9 +353,9 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
     ),
 
     # Gemini 2.5 Series (Stable)
-    "gemini-2.5-flash": ModelConfig(
+    "gemini-3.8-flash": ModelConfig(
         provider=ModelProvider.GOOGLE,
-        model_id="gemini-2.5-flash",
+        model_id="gemini-3.8-flash",
         tier=ModelTier.BALANCED,
         max_tokens=8192,
         temperature=0.7,
@@ -343,9 +367,9 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
         is_open_source=False
     ),
 
-    "gemini-2.5-flash-lite": ModelConfig(
+    "gemini-3.8-flash": ModelConfig(
         provider=ModelProvider.GOOGLE,
-        model_id="gemini-2.5-flash-lite",
+        model_id="gemini-3.8-flash",
         tier=ModelTier.FAST,
         max_tokens=8192,
         temperature=0.7,

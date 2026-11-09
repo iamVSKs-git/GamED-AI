@@ -25,7 +25,7 @@ class GeminiImageEditor:
     """Edit and generate images using Gemini native image generation."""
 
     IMAGE_MODEL = "gemini-2.5-flash-image"
-    VISION_MODEL = "gemini-3-flash-preview"
+    VISION_MODEL = "gemini-3.8-flash"
 
     def __init__(self, api_key: str | None = None):
         key = api_key or os.getenv("GOOGLE_API_KEY")
