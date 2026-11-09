@@ -172,6 +172,8 @@ secrets/
 # ============================================
 backend/pipeline_outputs/
 pipeline_outputs/
+backend/output/
+frontend/public/games/
 
 # ============================================
 # ML Model Files (Large Binary Files)

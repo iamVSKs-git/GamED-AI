@@ -1,12 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
-  trailingSlash: true,
-  basePath: '/GamED-AI',
-
   reactStrictMode: true,
 
-  // Webpack fallbacks for Pyodide (WASM Python runtime)
+  // Turbopack config (Next.js 16 default bundler)
+  turbopack: {},
+
+  // Webpack fallbacks for Pyodide (WASM Python runtime) — used with --webpack flag
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -19,7 +18,6 @@ const nextConfig = {
     return config;
   },
 
-  // Image optimization must be disabled for static export
   images: {
     unoptimized: true,
     remotePatterns: [
